@@ -82,6 +82,7 @@ const run = async (): Promise<void> => {
     writeFileSync(`./${mdFile}`, jobSummary);
   }
   
+  if (input.createPdfArtifact || input.createHtmlArtifact) {  
   const configFileName = '_config.js';
   // https://gist.github.com/danishcake/d045c867594d6be175cb394995c90e2c#file-readme-md
   const config = `// A marked renderer for mermaid diagrams
@@ -105,38 +106,39 @@ module.exports = {
         { content: 'mermaid.initialize({ startOnLoad: false}); (async () => { await mermaid.run(); })();' }
     ]
 };`;
-  execSync(`npm i -g md-to-pdf`);
-  writeFileSync(configFileName, config);
-  execSync(`md-to-pdf --config-file ./${configFileName} ./${mdFile}`);
-  info('PDF generated successfully');
-  execSync(`md-to-pdf --config-file ./${configFileName} ./${mdFile} --as-html`);
-  info('HTML generated successfully');
-  unlinkSync(configFileName);
 
-  setOutput('job-summary-html', readFileSync(htmlFile, 'utf8'));
+    execSync(`npm i -g md-to-pdf`);
+    writeFileSync(configFileName, config);
+    execSync(`md-to-pdf --config-file ./${configFileName} ./${mdFile}`);
+    info('PDF generated successfully');
+    execSync(`md-to-pdf --config-file ./${configFileName} ./${mdFile} --as-html`);
+    info('HTML generated successfully');
+    unlinkSync(configFileName);
+    setOutput('job-summary-html', readFileSync(htmlFile, 'utf8'));
 
-  if (input.createPdfArtifact) {
-    const artifact = new DefaultArtifactClient()
-    await artifact.uploadArtifact(input.artifactName ? input.artifactName + '-pdf' : 'pdf', [pdfFile], '.')
+    if (input.createPdfArtifact) {
+      const artifact = new DefaultArtifactClient()
+      await artifact.uploadArtifact(input.artifactName ? input.artifactName + '-pdf' : 'pdf', [pdfFile], '.')
+      setOutput('pdf-file', path.resolve(pdfFile));
+    }
+
+    if (input.createHtmlArtifact) {
+      const artifact = new DefaultArtifactClient()
+      await artifact.uploadArtifact(input.artifactName ? input.artifactName + '-html' : 'html', [htmlFile], '.')
+      setOutput('html-file', path.resolve(htmlFile));
+    }
   }
-
+ 
   if (input.createMdArtifact) {
     const artifact = new DefaultArtifactClient()
     await artifact.uploadArtifact(input.artifactName ? input.artifactName + '-md' : 'md', [mdFile], '.')
+    setOutput('md-file', path.resolve(mdFile));
   }
 
-  if (input.createHtmlArtifact) {
-    const artifact = new DefaultArtifactClient()
-    await artifact.uploadArtifact(input.artifactName ? input.artifactName + '-html' : 'html', [htmlFile], '.')
-  }
-
-  if (!input.createMd) unlinkSync(pdfFile);
+  if (!input.createMd) unlinkSync(mdFile);
   if (!input.createPdf) unlinkSync(pdfFile);
   if (!input.createHtml) unlinkSync(htmlFile);
-
-  setOutput('pdf-file', path.resolve(pdfFile));
-  setOutput('md-file', path.resolve(mdFile));
-  setOutput('html-file', path.resolve(htmlFile));
+ 
 };
 
 run();
